@@ -1,4 +1,3 @@
-````md
 # 🔗 URL Shortener System
 
 ![Java](https://img.shields.io/badge/Java-21-orange)
