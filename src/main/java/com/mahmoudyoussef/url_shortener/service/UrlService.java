@@ -8,4 +8,6 @@ public interface UrlService {
     ShortenResponse shorten(ShortenRequest request);
 
     String resolve(String code);
+
+    ShortenResponse getStats(String code);
 }
