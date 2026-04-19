@@ -1,7 +1,7 @@
 package com.mahmoudyoussef.url_shortener.config;
 
+import com.zaxxer.hikari.HikariDataSource;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -13,7 +13,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ShardDataSourceConfig {
 
-    private final com.mahmoudyoussef.url_shortener.config.ShardDataSourceProperties properties;
+    private final ShardDataSourceProperties properties;
 
     @Bean
     public Map<Integer, DataSource> shardDataSources() {
@@ -22,13 +22,20 @@ public class ShardDataSourceConfig {
 
         properties.getDatasource().forEach((shardId, shardProps) -> {
 
-            DataSource dataSource = DataSourceBuilder.create()
-                    .url(shardProps.getUrl())
-                    .username(shardProps.getUsername())
-                    .password(shardProps.getPassword())
-                    .build();
+            HikariDataSource ds = new HikariDataSource();
+            ds.setJdbcUrl(shardProps.getUrl());
+            ds.setUsername(shardProps.getUsername());
+            ds.setPassword(shardProps.getPassword());
 
-            shards.put(shardId, dataSource);
+            ds.setMaximumPoolSize(10);
+            ds.setMinimumIdle(2);
+            ds.setIdleTimeout(30000);
+            ds.setMaxLifetime(1800000);
+            ds.setConnectionTimeout(30000);
+
+            ds.setPoolName("shard-" + shardId + "-pool");
+
+            shards.put(shardId, ds);
         });
 
         return shards;
