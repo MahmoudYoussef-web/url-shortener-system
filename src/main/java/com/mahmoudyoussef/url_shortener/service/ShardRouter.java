@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
 import java.util.Map;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -12,14 +13,31 @@ public class ShardRouter {
 
     private final Map<Integer, DataSource> shardDataSources;
 
-
-    private static final int SHARD_COUNT = 1;
+    public int getShardCount() {
+        return shardDataSources.size();
+    }
 
     public DataSource route(String shortCode) {
         return shardDataSources.get(getShardId(shortCode));
     }
 
     public int getShardId(String shortCode) {
-        return Math.abs(shortCode.hashCode()) % SHARD_COUNT;
+        int shardCount = getShardCount();
+        if (shardCount == 0) {
+            throw new IllegalStateException("No shard datasources configured");
+        }
+        return Math.abs(shortCode.hashCode()) % shardCount;
+    }
+
+    public DataSource getDataSource(int shardId) {
+        DataSource ds = shardDataSources.get(shardId);
+        if (ds == null) {
+            throw new IllegalArgumentException("No datasource found for shardId=" + shardId);
+        }
+        return ds;
+    }
+
+    public Set<Integer> getAllShardIds() {
+        return shardDataSources.keySet();
     }
 }
