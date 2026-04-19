@@ -9,28 +9,42 @@ services:
       - "8080:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - DB_URL=jdbc:mysql://mysql:3306/url_shortener
       - DB_USERNAME=dev_user
       - DB_PASSWORD=${DB_PASSWORD}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     depends_on:
-      - mysql
+      - mysql-shard-0
+      - mysql-shard-1
       - redis
 
-  mysql:
+  mysql-shard-0:
     image: mysql:8.0
-    container_name: url-shortener-mysql
+    container_name: mysql-shard-0
     restart: always
     environment:
-      MYSQL_DATABASE: url_shortener
+      MYSQL_DATABASE: url_shortener_0
       MYSQL_USER: dev_user
       MYSQL_PASSWORD: ${DB_PASSWORD}
       MYSQL_ROOT_PASSWORD: root
     ports:
       - "3307:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - mysql_data_0:/var/lib/mysql
+
+  mysql-shard-1:
+    image: mysql:8.0
+    container_name: mysql-shard-1
+    restart: always
+    environment:
+      MYSQL_DATABASE: url_shortener_1
+      MYSQL_USER: dev_user
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_data_1:/var/lib/mysql
 
   redis:
     image: redis:7-alpine
@@ -40,4 +54,5 @@ services:
       - "6379:6379"
 
 volumes:
-  mysql_data:
+  mysql_data_0:
+  mysql_data_1:
