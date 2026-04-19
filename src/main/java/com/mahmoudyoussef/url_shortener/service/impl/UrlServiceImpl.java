@@ -2,21 +2,18 @@ package com.mahmoudyoussef.url_shortener.service.impl;
 
 import com.mahmoudyoussef.url_shortener.dto.request.ShortenRequest;
 import com.mahmoudyoussef.url_shortener.dto.response.ShortenResponse;
+import com.mahmoudyoussef.url_shortener.entity.UrlMapping;
 import com.mahmoudyoussef.url_shortener.exception.DuplicateAliasException;
 import com.mahmoudyoussef.url_shortener.exception.UrlNotFoundException;
 import com.mahmoudyoussef.url_shortener.generator.Base62Generator;
 import com.mahmoudyoussef.url_shortener.generator.RedisIdGenerator;
-import com.mahmoudyoussef.url_shortener.entity.UrlMapping;
 import com.mahmoudyoussef.url_shortener.repository.ClickTrackingRepository;
 import com.mahmoudyoussef.url_shortener.repository.ShardedUrlRepository;
 import com.mahmoudyoussef.url_shortener.service.CacheService;
 import com.mahmoudyoussef.url_shortener.service.UrlService;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,7 +48,6 @@ public class UrlServiceImpl implements UrlService {
         String code;
 
         if (request.getCustomAlias() != null && !request.getCustomAlias().isBlank()) {
-
             code = request.getCustomAlias();
 
             if (repository.existsByShortCode(code)) {
@@ -66,8 +62,8 @@ public class UrlServiceImpl implements UrlService {
                 ? Duration.ofSeconds(request.getExpirationSeconds())
                 : DEFAULT_TTL;
 
-        LocalDateTime expiresAt = LocalDateTime.now(ZoneOffset.UTC)
-                .plusSeconds(ttl.getSeconds());
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime expiresAt = now.plusSeconds(ttl.getSeconds());
 
         UrlMapping mapping = new UrlMapping();
         mapping.setShortCode(code);
@@ -94,27 +90,46 @@ public class UrlServiceImpl implements UrlService {
             return cached;
         }
 
+        UrlMapping mapping = repository.findEntityByShortCode(code);
 
-        String url = repository.findLongUrl(code);
-
-        if (url == null) {
+        if (mapping == null) {
             throw new UrlNotFoundException("URL not found or expired: " + code);
         }
 
-        cacheService.put(cacheKey, url, DEFAULT_TTL);
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+
+        Duration ttl = DEFAULT_TTL;
+
+        if (mapping.getExpiresAt() != null) {
+            ttl = Duration.between(now, mapping.getExpiresAt());
+
+            if (ttl.isNegative() || ttl.isZero()) {
+                throw new UrlNotFoundException("URL expired: " + code);
+            }
+        }
+
+        cacheService.put(cacheKey, mapping.getLongUrl(), ttl);
 
         clickTrackingRepository.increment(code);
 
-        return url;
+        return mapping.getLongUrl();
     }
+
+    @Override
     public ShortenResponse getStats(String code) {
 
         log.info("Fetching stats for code={}", code);
 
-        String url = repository.findLongUrl(code);
+        UrlMapping mapping = repository.findEntityByShortCode(code);
 
-        if (url == null) {
+        if (mapping == null) {
             throw new UrlNotFoundException("URL not found or expired: " + code);
+        }
+
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+
+        if (mapping.getExpiresAt() != null && mapping.getExpiresAt().isBefore(now)) {
+            throw new UrlNotFoundException("URL expired: " + code);
         }
 
         long clicks = clickTrackingRepository.getClicks(code);
