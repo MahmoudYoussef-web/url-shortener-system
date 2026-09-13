@@ -1,34 +1,49 @@
-# URL Shortener — Scalable Distributed Backend + Web UI
+# URL Shortener
+
+**A production-grade URL shortener backend (Java 21 + Spring Boot 3, sharded MySQL, Redis) with a dependency-free web UI — built to work the way systems like Bitly do under load.**
 
 ![Java](https://img.shields.io/badge/Java-21-orange?style=flat-square)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.x-6DB33F?style=flat-square&logo=springboot&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?style=flat-square&logo=redis&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-8-4479A1?style=flat-square&logo=mysql&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)
-![Status](https://img.shields.io/badge/Status-Production_Ready-brightgreen?style=flat-square)
 
-A production-grade URL shortener backend engineered around distributed system principles:
-atomic ID generation, deterministic sharding, cache-aside reads, and Redis-backed rate
-limiting — plus **SnipLink**, a dependency-free web UI served by the same backend.
-Designed to simulate how systems like Bitly operate under high traffic.
+Shorten URLs with optional custom aliases, redirect in milliseconds via Redis cache,
+track clicks in real time, expire links automatically, and stay fair under load with
+per-IP rate limiting. No signup, no ORM — raw JDBC with deterministic hash sharding
+across MySQL shards.
 
----
+## Features
 
-## Screenshots
+- Short links with auto-generated Base62 codes or custom aliases (`/summer-sale`)
+- Sub-50ms redirects via cache-aside Redis layer (MySQL stays the source of truth)
+- Real-time click counters and a stats endpoint per link
+- Expiring links (1h–30d, 24h default) with hourly DB cleanup
+- Atomic Lua-script rate limiting — 10 req/min per IP, per operation, fail-open
+- **SnipLink web UI** served by the same backend (no build step, same origin)
+- Consistent JSON error envelope across every endpoint
+- Docker Compose setup: app + 2 MySQL shards + Redis
 
-| Landing page | Shorten with custom alias |
-|---|---|
-| ![SnipLink landing page](docs/screenshots/01-hero.png) | ![Shortening a link with a custom alias](docs/screenshots/02-shorten-result.png) |
+## Quick Start
 
-| Click analytics (2 real clicks) | Per-device link history | Mobile |
-|---|---|---|
-| ![Click analytics for a short link](docs/screenshots/03-stats.png) | ![Recent links history](docs/screenshots/04-history.png) | ![Mobile view](docs/screenshots/05-mobile.png) |
+```bash
+git clone https://github.com/MahmoudYoussef-web/url-shortener-system.git
+cd url-shortener-system
+cp .env.example .env   # set DB_PASSWORD, then:
+docker-compose up --build
+```
 
----
+Open the web UI at `http://localhost:8080/` or shorten your first link:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/urls \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com/very/long/page"}'
+# → {"shortUrl":"http://localhost:8080/api/v1/urls/aaaadp","code":"aaaadp","clickCount":0}
+```
 
 ## Table of Contents
 
-- [Overview](#overview)
 - [Web UI (SnipLink)](#web-ui-sniplink)
 - [Architecture](#architecture)
 - [System Design Decisions](#system-design-decisions)
@@ -36,23 +51,17 @@ Designed to simulate how systems like Bitly operate under high traffic.
 - [Error Handling](#error-handling)
 - [API Reference](#api-reference)
 - [Running Locally](#running-locally)
+- [Configuration](#configuration)
 - [Tech Stack](#tech-stack)
-
----
-
-## Overview
-
-The system provides URL shortening with optional custom aliases, ultra-fast redirection
-via Redis cache, real-time click tracking, expiration with automatic DB cleanup, and
-Redis-backed rate limiting per IP.
-
-The focus is on **how** the system is built — not just what it does.
+- [Contributing](#contributing)
+- [License](#license)
+- [Author](#author)
 
 ---
 
 ## Web UI (SnipLink)
 
-A clean, TinyURL-style web UI is served directly by the backend — no build step, no
+A clean, TinyURL-style interface served directly by the backend — no build step, no
 dependencies, same origin (so no CORS issues in the default setup).
 
 - **Shorten form** — long URL + optional custom alias + expiry (1h / 24h / 7d / 30d)
@@ -63,8 +72,16 @@ dependencies, same origin (so no CORS issues in the default setup).
 - **Accessible & responsive** — semantic HTML, skip link, labeled inputs, `aria-live`
   feedback, visible focus states, `prefers-reduced-motion` support, mobile-first layout
 
+| Landing page | Shorten with custom alias |
+|---|---|
+| ![SnipLink landing page](docs/screenshots/01-hero.png) | ![Shortening a link with a custom alias](docs/screenshots/02-shorten-result.png) |
+
+| Click analytics (2 real clicks) | Per-device link history | Mobile |
+|---|---|---|
+| ![Click analytics for a short link](docs/screenshots/03-stats.png) | ![Recent links history](docs/screenshots/04-history.png) | ![Mobile view](docs/screenshots/05-mobile.png) |
+
 Source lives in `frontend/` (`index.html`, `styles.css`, `app.js`) and is published to
-`src/main/resources/static/` (copy the files over and rebuild after editing).
+`src/main/resources/static/` — copy the files over and rebuild after editing.
 
 ---
 
@@ -180,7 +197,8 @@ This means an expired URL is never returned even on a Redis cache miss. Redis TT
 DELETE FROM url_mapping WHERE expires_at IS NOT NULL AND expires_at <= NOW()
 ```
 
-Prevents table bloat and maintains query performance over time.
+Prevents table bloat and maintains query performance over time. Each shard is initialized
+at startup so cleanup covers all shards without relying on lazy initialization.
 
 ### Deterministic Sharding
 
@@ -188,18 +206,24 @@ The system uses hash-based sharding to route each short code to a specific MySQL
 
 shard = floorMod(hash(shortCode), N)
 
-Deployed with 2 MySQL shards (`mysql-shard-0`, `mysql-shard-1`). Scaling to N shards requires only adding datasource entries in configuration — no code changes needed. Shard count is derived dynamically from the number of configured datasources.
+Deployed with 2 MySQL shards (`mysql-shard-0`, `mysql-shard-1`). Scaling to N shards
+requires only adding datasource entries in configuration — no code changes needed. Shard
+count is derived dynamically from the number of configured datasources.
 
 This ensures:
 - Deterministic routing (same code → same shard)
 - No cross-shard joins or coordination
 - Horizontal scalability by configuration only
 
-No routing table required. Any node can route any request independently. `JdbcTemplate` instances per shard are initialized lazily and cached in a `ConcurrentHashMap` — one connection pool per shard, created on first use.
+No routing table required. Any node can route any request independently. `JdbcTemplate`
+instances per shard are initialized lazily and cached in a `ConcurrentHashMap` — one
+connection pool per shard, created on first use.
 
 ### Rate Limiting — Atomic Lua Script
 
-The naive approach (`INCR` then `EXPIRE` as separate commands) has a race condition: if the process crashes between the two calls, the key never expires. This is solved with a single Lua script executed atomically:
+The naive approach (`INCR` then `EXPIRE` as separate commands) has a race condition: if
+the process crashes between the two calls, the key never expires. This is solved with a
+single Lua script executed atomically:
 
 ```lua
 local current = redis.call('INCR', KEYS[1])
@@ -209,25 +233,18 @@ end
 return current
 ```
 
-Separate rate limit keys per operation type: `rate:shorten:{ip}`, `rate:redirect:{ip}`, `rate:stats:{ip}` (10 requests/minute each). Fail-open: if Redis is unavailable, requests pass through rather than blocking the system.
+Separate rate limit keys per operation type: `rate:shorten:{ip}`, `rate:redirect:{ip}`,
+`rate:stats:{ip}` (10 requests/minute each). Fail-open: if Redis is unavailable, requests
+pass through rather than blocking the system.
 
 ### Client IP Resolution
 
-`ClientIpResolver` checks `X-Forwarded-For` and `X-Real-IP` headers before falling back to `getRemoteAddr()`. Ensures correct IP identification behind load balancers and reverse proxies.
+`ClientIpResolver` checks `X-Forwarded-For` and `X-Real-IP` headers before falling back
+to `getRemoteAddr()`. Ensures correct IP identification behind load balancers and
+reverse proxies.
 
 ---
-### Expired URL Cleanup
 
-Expired URLs are removed using a scheduled cleanup job that iterates across all configured shards.
-
-Each shard is initialized at application startup to ensure cleanup covers all shards without relying on lazy initialization.
-
-This guarantees:
-- No orphaned expired records
-- Consistent cleanup across all shards
-- Operational correctness in multi-shard environments
-
----
 ## Request Flows
 
 ### Shorten URL
@@ -335,19 +352,11 @@ Full interactive docs: `http://localhost:8080/swagger-ui/index.html`
 
 ### With Docker (recommended)
 
-```bash
-git clone https://github.com/MahmoudYoussef-web/url-shortener-system.git
-cd url-shortener-system
+See [Quick Start](#quick-start). After `docker-compose up --build`:
 
-cp .env.example .env
-# Edit .env and set DB_PASSWORD
-
-docker-compose up --build
-```
-
-API: `http://localhost:8080`
-Web UI: `http://localhost:8080/`
-Swagger: `http://localhost:8080/swagger-ui/index.html`
+- Web UI: `http://localhost:8080/`
+- API: `http://localhost:8080`
+- Swagger: `http://localhost:8080/swagger-ui/index.html`
 
 ### Without Docker
 
@@ -362,29 +371,25 @@ cp src/main/resources/application.example.properties \
 ```
 
 On Windows there is also `run-local.bat` (starts the packaged jar with local shard
-ports and Redis on `localhost`).
+ports and Redis on `localhost`). Run the integration tests with:
 
-### Configuration
+```bash
+mvn test
+```
+
+---
+
+## Configuration
 
 | Variable | Description | Default |
 |---|---|---|
 | `SERVER_PORT` | HTTP port | `8080` |
 | `APP_BASE_URL` | Prefix used to build `shortUrl` | `http://localhost:8080/api/v1/urls/` |
-| `DB_USERNAME` / `DB_PASSWORD` | Shard credentials (docker profile) | — |
+| `DB_USERNAME` / `DB_PASSWORD` | Shard credentials (Docker Compose) | — |
 | `SPRING_DATASOURCE_URL` | Default datasource (local runs) | shard-0 |
 | `APP_SHARDS_DATASOURCE_0_URL` / `APP_SHARDS_DATASOURCE_1_URL` | Shard JDBC URLs (local runs) | `localhost:3307` / `localhost:3308` |
-| `REDIS_HOST` / `REDIS_PORT` | Redis (docker profile) | `redis` / `6379` |
+| `REDIS_HOST` / `REDIS_PORT` | Redis location | `localhost` / `6379` (`redis` / `6379` under Compose) |
 | `app.cors.allowed-origins` | Browser origins allowed on `/api/**` | `http://localhost:3000` |
-
-### Environment Variables
-
-| Variable | Description |
-|---|---|
-| `DB_URL` | MySQL JDBC URL |
-| `DB_USERNAME` | Database username |
-| `DB_PASSWORD` | Database password |
-| `REDIS_HOST` | Redis hostname |
-| `REDIS_PORT` | Redis port (default `6379`) |
 
 ---
 
@@ -404,7 +409,25 @@ ports and Redis on `localhost`).
 
 ---
 
+## Contributing
+
+Issues and pull requests are welcome:
+
+1. Fork the repo and create a branch (`git checkout -b fix/my-fix`)
+2. Make your change with tests where it makes sense (`mvn test`)
+3. Open a pull request describing the problem and the fix
+
+## License
+
+No license file is included yet — please contact the maintainer before reusing this
+code in your own projects.
+
 ## Author
 
-**Mahmoud Youssef** — Backend Engineer
-[GitHub](https://github.com/MahmoudYoussef-web)
+**Mahmoud Youssef** — Backend Engineer working with Java/Spring Boot, MySQL sharding,
+and Redis-backed distributed patterns.
+
+- GitHub: [@MahmoudYoussef-web](https://github.com/MahmoudYoussef-web)
+- Repository: [url-shortener-system](https://github.com/MahmoudYoussef-web/url-shortener-system)
+
+Found a bug or have an idea? [Open an issue](https://github.com/MahmoudYoussef-web/url-shortener-system/issues) — I read everything.
