@@ -26,7 +26,8 @@ public class ShardRouter {
         if (shardCount == 0) {
             throw new IllegalStateException("No shard datasources configured");
         }
-        return Math.abs(shortCode.hashCode()) % shardCount;
+        // floorMod avoids the Math.abs(Integer.MIN_VALUE) negative-value trap
+        return Math.floorMod(shortCode.hashCode(), shardCount);
     }
 
     public DataSource getDataSource(int shardId) {

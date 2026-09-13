@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Service
@@ -39,7 +40,9 @@ public class RedisIdGenerator {
             max.set(newMax);
 
         } catch (Exception e) {
-            long fallback = System.currentTimeMillis();
+            // Degraded mode: random base in a high range keeps ids unique-ish
+            // across instances (millis could collide) and far from Redis ids.
+            long fallback = ThreadLocalRandom.current().nextLong(1_000_000_000L, 4_000_000_000L);
             current.set(fallback);
             max.set(fallback + BATCH_SIZE);
         }

@@ -8,8 +8,11 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+import jakarta.validation.ConstraintViolationException;
 
 import java.util.stream.Collectors;
 
@@ -53,6 +56,60 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(
                         HttpStatus.BAD_REQUEST.value(),
                         message,
+                        request.getRequestURI()
+                ));
+    }
+
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(
+            ConstraintViolationException ex,
+            HttpServletRequest request) {
+
+        String message = ex.getConstraintViolations()
+                .stream()
+                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                .collect(Collectors.joining(", "));
+
+        log.warn("Constraint violation: {}", message);
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of(
+                        HttpStatus.BAD_REQUEST.value(),
+                        message,
+                        request.getRequestURI()
+                ));
+    }
+
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadable(
+            HttpMessageNotReadableException ex,
+            HttpServletRequest request) {
+
+        log.warn("Malformed request body: {}", ex.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of(
+                        HttpStatus.BAD_REQUEST.value(),
+                        "Malformed JSON request body",
+                        request.getRequestURI()
+                ));
+    }
+
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFoundResource(
+            NoResourceFoundException ex,
+            HttpServletRequest request) {
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ErrorResponse.of(
+                        HttpStatus.NOT_FOUND.value(),
+                        "Resource not found: " + request.getRequestURI(),
                         request.getRequestURI()
                 ));
     }

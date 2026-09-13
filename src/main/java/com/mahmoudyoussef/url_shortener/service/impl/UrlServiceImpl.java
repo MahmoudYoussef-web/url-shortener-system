@@ -15,7 +15,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -39,7 +38,6 @@ public class UrlServiceImpl implements UrlService {
     private static final Duration DEFAULT_TTL = Duration.ofHours(24);
 
     @Override
-    @Transactional
     public ShortenResponse shorten(ShortenRequest request) {
 
         log.info("Shorten request | url={} | alias={}",
@@ -68,6 +66,7 @@ public class UrlServiceImpl implements UrlService {
         UrlMapping mapping = new UrlMapping();
         mapping.setShortCode(code);
         mapping.setLongUrl(request.getUrl());
+        mapping.setCreatedAt(LocalDateTime.now(ZoneOffset.UTC));
         mapping.setExpiresAt(expiresAt);
 
         repository.save(mapping);

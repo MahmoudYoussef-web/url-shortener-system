@@ -10,7 +10,7 @@ public class ShortenRequest {
 
     @NotBlank(message = "URL must not be blank")
     @Pattern(
-            regexp = "^(https?|ftp)://[^\\s/$.?#].[^\\s]*$",
+            regexp = "^(?i)(https?|ftp)://[^\\s/$.?#].[^\\s]*$",
             message = "Invalid URL format"
     )
     private String url;
