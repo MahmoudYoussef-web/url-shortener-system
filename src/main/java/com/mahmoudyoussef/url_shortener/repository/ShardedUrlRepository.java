@@ -41,6 +41,30 @@ public class ShardedUrlRepository {
                 return new JdbcTemplate(ds);
             });
         }
+        ensureSchemaOnAllShards();
+    }
+
+    /**
+     * Hibernate ddl-auto only manages the default datasource, so every shard
+     * must have its table created explicitly. Runs on startup and is idempotent,
+     * which keeps fresh Docker volumes and new shards working without migrations.
+     */
+    private void ensureSchemaOnAllShards() {
+        String ddl = "CREATE TABLE IF NOT EXISTS url_mapping (" +
+                "short_code VARCHAR(20) NOT NULL PRIMARY KEY, " +
+                "long_url VARCHAR(2048) NOT NULL, " +
+                "created_at DATETIME(6) NOT NULL, " +
+                "expires_at DATETIME(6) NULL, " +
+                "KEY idx_expires_at (expires_at))";
+        for (Map.Entry<Integer, JdbcTemplate> entry : jdbcTemplateMap.entrySet()) {
+            try {
+                entry.getValue().execute(ddl);
+                log.info("Schema verified on shard {}", entry.getKey());
+            } catch (Exception e) {
+                log.error("Schema init failed on shard {}", entry.getKey(), e);
+                throw new IllegalStateException("Schema init failed on shard " + entry.getKey(), e);
+            }
+        }
     }
 
     public void save(UrlMapping mapping) {
@@ -80,6 +104,7 @@ public class ShardedUrlRepository {
                         UrlMapping m = new UrlMapping();
                         m.setShortCode(rs.getString("short_code"));
                         m.setLongUrl(rs.getString("long_url"));
+                        m.setCreatedAt(rs.getObject("created_at", LocalDateTime.class));
                         m.setExpiresAt(rs.getObject("expires_at", LocalDateTime.class));
                         return m;
                     },
