@@ -7,6 +7,7 @@
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?style=flat-square&logo=redis&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-8-4479A1?style=flat-square&logo=mysql&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)
+[![Demo Video](https://img.shields.io/badge/YouTube-Demo_Video-FF0000?style=flat-square&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=rGh0FoCucTk)
 
 Shorten URLs with optional custom aliases, redirect in milliseconds via Redis cache,
 track clicks in real time, expire links automatically, and stay fair under load with
@@ -44,6 +45,7 @@ curl -X POST http://localhost:8080/api/v1/urls \
 
 ## Table of Contents
 
+- [Demo](#demo)
 - [Web UI (SnipLink)](#web-ui-sniplink)
 - [Architecture](#architecture)
 - [System Design Decisions](#system-design-decisions)
@@ -56,6 +58,14 @@ curl -X POST http://localhost:8080/api/v1/urls \
 - [Contributing](#contributing)
 - [License](#license)
 - [Author](#author)
+
+---
+
+## Demo
+
+🎬 **Watch the walkthrough:** [URL Shortener — Demo Video](https://www.youtube.com/watch?v=rGh0FoCucTk)
+
+[![Watch the demo](https://img.youtube.com/vi/rGh0FoCucTk/0.jpg)](https://www.youtube.com/watch?v=rGh0FoCucTk)
 
 ---
 
