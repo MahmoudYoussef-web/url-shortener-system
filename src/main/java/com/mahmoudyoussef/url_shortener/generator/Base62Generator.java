@@ -21,7 +21,6 @@ public class Base62Generator {
 
         String encoded = sb.reverse().toString();
 
-
         return pad(encoded);
     }
 

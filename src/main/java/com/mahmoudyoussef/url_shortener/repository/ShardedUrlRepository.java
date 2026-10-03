@@ -75,20 +75,6 @@ public class ShardedUrlRepository {
         );
     }
 
-    public String findLongUrl(String shortCode) {
-        JdbcTemplate jdbc = getJdbcTemplate(shortCode);
-
-        try {
-            return jdbc.queryForObject(
-                    "SELECT long_url FROM url_mapping WHERE short_code = ? AND (expires_at IS NULL OR expires_at > NOW())",
-                    String.class,
-                    shortCode
-            );
-        } catch (EmptyResultDataAccessException e) {
-            return null;
-        }
-    }
-
     public UrlMapping findEntityByShortCode(String shortCode) {
         JdbcTemplate jdbc = getJdbcTemplate(shortCode);
 

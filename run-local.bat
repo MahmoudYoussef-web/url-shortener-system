@@ -1,6 +1,6 @@
 @echo off
 REM Run the URL Shortener backend locally.
-REM Uses the Docker MySQL shards (3308/3309) and local Redis (6379).
+REM Uses the Docker MySQL shards (3307/3308 per application.properties and docker-compose.yml) and local Redis (6379).
 REM App port is 8081 because 8080 is taken by another project on this machine.
 REM
 REM DB credentials are read from the .env file next to this script.
@@ -15,10 +15,10 @@ if "%DB_PASSWORD%"=="" (
   echo [ERROR] DB_PASSWORD is not set in .env
   exit /b 1
 )
-set SPRING_DATASOURCE_URL=jdbc:mysql://127.0.0.1:3309/url_shortener_0
+set SPRING_DATASOURCE_URL=jdbc:mysql://127.0.0.1:3307/url_shortener_0
 set SPRING_DATASOURCE_USERNAME=dev_user
 set SPRING_DATASOURCE_PASSWORD=%DB_PASSWORD%
-set APP_SHARDS_DATASOURCE_0_URL=jdbc:mysql://127.0.0.1:3309/url_shortener_0
+set APP_SHARDS_DATASOURCE_0_URL=jdbc:mysql://127.0.0.1:3307/url_shortener_0
 set APP_SHARDS_DATASOURCE_1_URL=jdbc:mysql://127.0.0.1:3308/url_shortener_1
 set SERVER_PORT=8081
 set APP_BASE_URL=http://localhost:8081/api/v1/urls/

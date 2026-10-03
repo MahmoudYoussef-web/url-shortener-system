@@ -17,7 +17,7 @@
     <artifactId>url-shortener</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>url-shortener</name>
-    <description>Advanced URL Shortener System</description>
+    <description>URL shortener learning project (Spring Boot + MySQL + Redis)</description>
 
     <!-- Java 21 -->
     <properties>
@@ -71,7 +71,7 @@
             <version>2.5.0</version>
         </dependency>
 
-        <!-- Testing (صح بدل كل التست الغلط اللي كان موجود) -->
+        <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

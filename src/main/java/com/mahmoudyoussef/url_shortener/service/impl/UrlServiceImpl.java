@@ -66,7 +66,7 @@ public class UrlServiceImpl implements UrlService {
         UrlMapping mapping = new UrlMapping();
         mapping.setShortCode(code);
         mapping.setLongUrl(request.getUrl());
-        mapping.setCreatedAt(LocalDateTime.now(ZoneOffset.UTC));
+        mapping.setCreatedAt(now);
         mapping.setExpiresAt(expiresAt);
 
         repository.save(mapping);

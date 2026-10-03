@@ -25,7 +25,7 @@ services:
       MYSQL_DATABASE: url_shortener_0
       MYSQL_USER: dev_user
       MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
     ports:
       - "3307:3306"
     volumes:
@@ -39,7 +39,7 @@ services:
       MYSQL_DATABASE: url_shortener_1
       MYSQL_USER: dev_user
       MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
     ports:
       - "3308:3306"
     volumes:

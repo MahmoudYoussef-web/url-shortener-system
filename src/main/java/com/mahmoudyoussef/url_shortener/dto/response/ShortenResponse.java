@@ -15,10 +15,6 @@ public class ShortenResponse {
         this.clickCount = clickCount;
     }
 
-    public static ShortenResponse of(String shortUrl, String code) {
-        return new ShortenResponse(shortUrl, code, 0L);
-    }
-
     public static ShortenResponse withClicks(String shortUrl, String code, Long clickCount) {
         return new ShortenResponse(shortUrl, code, clickCount);
     }

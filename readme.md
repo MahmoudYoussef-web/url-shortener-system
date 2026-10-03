@@ -8,7 +8,7 @@ A simple URL shortener I built to learn Spring Boot + MySQL + Redis. You can sho
 - Redirect: `GET /api/v1/urls/{code}` returns 302
 - Stats per link (click count)
 - Links expire (default 24h) + hourly cleanup job
-- Rate limit: 10 req/min per IP (Redis Lua script, fail-open)
+- Rate limit: 10 req/min per IP per endpoint (shorten / redirect / stats separately) (Redis Lua script, fail-open)
 - Redis cache in front of MySQL
 
 ## How to run
@@ -76,9 +76,11 @@ Errors all look like this:
   "status": 409,
   "message": "Alias already exists: google",
   "path": "/api/v1/urls",
-  "timestamp": "2025-01-15T10:30:00Z"
+  "timestamp": "2025-01-15T10:30:00"
 }
 ```
+
+`timestamp` is a local datetime (no `Z`/offset).
 
 ## How it is built
 
