@@ -41,7 +41,9 @@ Without Docker you need Java 21, Maven, MySQL 8, Redis 7:
 ./mvnw spring-boot:run
 ```
 
-On Windows there is also `run-local.bat`. Tests:
+On Windows there is also `run-local.bat` (same thing, but on port 8081 to avoid clashing with Docker on 8080). Tests:
+
+Tests need MySQL and Redis running first (e.g. `docker-compose up mysql-shard-0 mysql-shard-1 redis`):
 
 ```bash
 mvn test

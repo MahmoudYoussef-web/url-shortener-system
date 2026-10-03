@@ -1,7 +1,7 @@
 @echo off
 REM Run the URL Shortener backend locally.
 REM Uses the Docker MySQL shards (3307/3308 per application.properties and docker-compose.yml) and local Redis (6379).
-REM App port is 8081 because 8080 is taken by another project on this machine.
+REM App port is 8081 so it does not clash with the Docker setup on 8080.
 REM
 REM DB credentials are read from the .env file next to this script.
 REM .env is git-ignored and must never be committed.
