@@ -44,11 +44,7 @@ public class ShardedUrlRepository {
         ensureSchemaOnAllShards();
     }
 
-    /**
-     * Hibernate ddl-auto only manages the default datasource, so every shard
-     * must have its table created explicitly. Runs on startup and is idempotent,
-     * which keeps fresh Docker volumes and new shards working without migrations.
-     */
+    // ddl-auto only covers the default datasource, so create the table on each shard at startup.
     private void ensureSchemaOnAllShards() {
         String ddl = "CREATE TABLE IF NOT EXISTS url_mapping (" +
                 "short_code VARCHAR(20) NOT NULL PRIMARY KEY, " +
@@ -119,7 +115,7 @@ public class ShardedUrlRepository {
         JdbcTemplate jdbc = getJdbcTemplate(shortCode);
 
         Integer result = jdbc.queryForObject(
-                "SELECT COUNT(1) FROM url_mapping WHERE short_code = ?",
+                "SELECT COUNT(1) FROM url_mapping WHERE short_code = ? AND (expires_at IS NULL OR expires_at > NOW())",
                 Integer.class,
                 shortCode
         );

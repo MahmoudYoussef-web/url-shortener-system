@@ -1,5 +1,5 @@
 @echo off
-REM Run the URL Shortener backend + SnipLink UI locally.
+REM Run the URL Shortener backend locally.
 REM Uses the Docker MySQL shards (3308/3309) and local Redis (6379).
 REM App port is 8081 because 8080 is taken by another project on this machine.
 REM
